@@ -1,5 +1,8 @@
 # chart-logger
 
+Inline-style: 
+![alt text](https://github.com/alvinkohcm/chart-logger/assets/img/project_screenshot.png "[Screenshot]")
+
 Required Configuration File
 - [ ] Requires config.php in *../_settings/*
 
