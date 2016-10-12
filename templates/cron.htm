@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>TradeProFX Charts (TradingView)</title>
+
+    <!-- Bootstrap -->
+    <link href="assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="container-fluid" style="padding: 30px;">
+      <div class="panel panel-default">
+        <div class="panel-heading"><h3 class="panel-title">TradeProFX Chart Logger</h3></div>
+        <div class="panel-body">
+          
+
+            
+            <div class="well text-center" style="margin-bottom: 0;">
+              <img src="assets/img/icon_database.png" style="max-height: 80px">
+              <img src="assets/img/icon_direction.png" style="max-height: 30px">
+              <img src="assets/img/icon_direction.png" style="max-height: 50px">
+              <img src="assets/img/icon_direction.png" style="max-height: 30px">
+              <img src="assets/img/icon_database.png" style="max-height: 80px">              
+              <img src="assets/img/icon_chart.png" style="max-height: 50px">              
+              <div style="margin-bottom: 20px;">
+                <b>Datafeed:</b> {$display.datafeed}
+                <span style="margin: 0 30px;">&nbsp;</span>
+                <b>Chart Host:</b> {$display.host}
+              </div>
+              <div class="progress" style="margin-bottom: 0;">              
+                <div class="progress-bar progress-bar-danger" role="progressbar" style="width:{$display.lag/60*100}%">
+                  {if $quotes}
+                  Lag behind master: {$display.lag} seconds
+                  {else}
+                  No prices to update (Inactive data feed)
+                  {/if}
+                </div>
+                <div class="progress-bar progress-bar-success" role="progressbar" style="width:{100-$display.lag/60*100}%">{if $display.lag < 5}Prices are up to date{/if}</div>
+              </div>                
+            </div>
+            
+          
+        </div>
+        
+        {if $quotes}
+        <table class="table table-condensed table-striped">
+          <tr><th>Symbol</th><th>Time</th><th>Close</th><th>High</th><th>Low</th><th>Open</th></tr>
+          {foreach from=$quotes key=symbol item=prices}
+            {foreach from=$prices key=unixtime item=price name=prices_loop}
+              {if $smarty.foreach.prices_loop.last}
+              <tr><td>{$symbol}</td><td>{$unixtime|date_format:"H:i:s (Y-m-d)"}</td><td>{$price.close}</td><td>{$price.high}</td><td>{$price.low}</td><td>{$price.open}</td></tr>
+              {/if}
+            {/foreach}
+          {/foreach}
+        </table>
+        {/if}
+      </div>
+    </div>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="assets/jquery/jquery.min.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="assets/bootstrap/js/bootstrap.min.js"></script>
+  </body>
+</html>
