@@ -38,14 +38,14 @@
                 <b>Chart Host:</b> {$display.host}
               </div>
               <div class="progress" style="margin-bottom: 0;">              
-                <div class="progress-bar progress-bar-danger" role="progressbar" style="width:{$display.lag/60*100}%">
+                <div class="progress-bar progress-bar-danger" role="progressbar" style="width:{if $display.lag < 60}{$display.lag/60*100}{else}100{/if}%">
                   {if $quotes}
                   Lag behind master: {$display.lag} seconds
                   {else}
                   No prices to update (Inactive data feed)
                   {/if}
                 </div>
-                <div class="progress-bar progress-bar-success" role="progressbar" style="width:{100-$display.lag/60*100}%">{if $display.lag < 5}Prices are up to date{/if}</div>
+                <div class="progress-bar progress-bar-success" role="progressbar" style="width:{if $display.lag < 60}{100-$display.lag/60*100}{else}0{/if}%">{if $display.lag < 5}Prices are up to date{/if}</div>
               </div>                
             </div>
             
