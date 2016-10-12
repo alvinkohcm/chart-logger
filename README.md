@@ -1,6 +1,6 @@
 ## chart-logger
 
-![alt text](https://github.com/alvinkohcm/chart-logger/assets/img/project_screenshot.png "[Screenshot]")
+![alt text](https://raw.githubusercontent.com/alvinkohcm/chart-logger/master/assets/img/project_screenshot.png "[Screenshot]")
 
 #Required Configuration File
 - [ ] Requires config.php in *../_settings/*
