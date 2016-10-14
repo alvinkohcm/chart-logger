@@ -55,8 +55,8 @@
         {if $quotes}
         <table class="table table-condensed table-striped">
           <tr><th>Symbol</th><th>Time</th><th>Close</th><th>High</th><th>Low</th><th>Open</th></tr>
-          {foreach from=$quotes key=symbol item=prices}
-            {foreach from=$prices key=unixtime item=price name=prices_loop}
+          {foreach from=$quotes key=symbol item=intervals}
+            {foreach from=$intervals.second key=unixtime item=price name=prices_loop}
               {if $smarty.foreach.prices_loop.last}
               <tr><td>{$symbol}</td><td>{$unixtime|date_format:"H:i:s (Y-m-d)"}</td><td>{$price.close}</td><td>{$price.high}</td><td>{$price.low}</td><td>{$price.open}</td></tr>
               {/if}
