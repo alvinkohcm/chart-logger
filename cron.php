@@ -7,7 +7,8 @@ include("includes/functions.php");
 ******************************************************************************/
 $logger = new ChartLogger($PDO);
 $logger->setDatafeed($PDO_DATAFEED);
-$quotes = $logger->logPrices();
+$logger->logPrices();
+$output = $logger->getOutput();
 
 /******************************************************************************
 * STATS
@@ -15,16 +16,12 @@ $quotes = $logger->logPrices();
 $display[host] = $database[host];
 $display[datafeed] = $datafeed[host];
 $display[lag] = $logger->getLag();
-if ($quotes)
-{
- ksort($quotes);
-}
 
 /******************************************************************************
 * DISPLAY
 ******************************************************************************/
 $template->assign("display",$display);
-$template->assign("quotes",$quotes);
+$template->assign("output",$output);
 $template->display("cron.htm");
 
 ?>

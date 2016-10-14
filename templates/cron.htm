@@ -26,12 +26,12 @@
 
             
             <div class="well text-center" style="margin-bottom: 0;">
-              <img src="assets/img/icon_database.png" style="max-height: 80px">
+              <img src="assets/img/icon_database.png" style="max-height: 70px">
               <img src="assets/img/icon_direction.png" style="max-height: 30px">
               <img src="assets/img/icon_direction.png" style="max-height: 50px">
               <img src="assets/img/icon_direction.png" style="max-height: 30px">
-              <img src="assets/img/icon_database.png" style="max-height: 80px">              
-              <img src="assets/img/icon_chart.png" style="max-height: 50px">              
+              <img src="assets/img/icon_database.png" style="max-height: 70px">              
+              <img src="assets/img/icon_chart.png" style="max-height: 40px">              
               <div style="margin-bottom: 20px;">
                 <b>Datafeed:</b> {$display.datafeed}
                 <span style="margin: 0 30px;">&nbsp;</span>
@@ -39,7 +39,7 @@
               </div>
               <div class="progress" style="margin-bottom: 0;">              
                 <div class="progress-bar progress-bar-danger" role="progressbar" style="width:{if $display.lag < 60}{$display.lag/60*100}{else}100{/if}%">
-                  {if $quotes}
+                  {if $output}
                   Lag behind master: {$display.lag} seconds
                   {else}
                   No prices to update (Inactive data feed)
@@ -52,15 +52,11 @@
           
         </div>
         
-        {if $quotes}
+        {if $output}
         <table class="table table-condensed table-striped">
           <tr><th>Symbol</th><th>Time</th><th>Close</th><th>High</th><th>Low</th><th>Open</th></tr>
-          {foreach from=$quotes key=symbol item=intervals}
-            {foreach from=$intervals.second key=unixtime item=price name=prices_loop}
-              {if $smarty.foreach.prices_loop.last}
-              <tr><td>{$symbol}</td><td>{$unixtime|date_format:"H:i:s (Y-m-d)"}</td><td>{$price.close}</td><td>{$price.high}</td><td>{$price.low}</td><td>{$price.open}</td></tr>
-              {/if}
-            {/foreach}
+          {foreach from=$output key=symbol item=price}
+            <tr><td>{$symbol}</td><td>{$price.unixtime|date_format:"H:i:s (Y-m-d)"}</td><td>{$price.close}</td><td>{$price.high}</td><td>{$price.low}</td><td>{$price.open}</td></tr>
           {/foreach}
         </table>
         {/if}

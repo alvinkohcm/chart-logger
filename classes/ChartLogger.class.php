@@ -3,6 +3,7 @@
 class ChartLogger
 {
  public $symbols;
+ public $output;
  
  private $lastpriceid;
  private $lastunixtime;
@@ -67,23 +68,24 @@ class ChartLogger
    while ($row = $stmt->fetch(PDO::FETCH_ASSOC))
    {
     //### Only capture non-duplicate unique prices (unixtime/close)
-    if ($duplicatecheck[$row[symbol]][unixtime] != $row[unixtime] || $duplicatecheck[$row[symbol]][close] != $row[close]) 
+    if ($duplicatecheck[$row['symbol']]['unixtime'] != $row['unixtime'] ||
+        $duplicatecheck[$row['symbol']]['close'] != $row['close']) 
     {
      //### Group prices by interval (seconds, 10s, minutes)         
-     $interval[second] = $row[unixtime];
-     $interval[minute] = floor($row[unixtime]/60)*60;          
-     $interval[day] = floor($row[unixtime]/86400)*86400;          
+     $interval['second'] = $row['unixtime'];
+     $interval['minute'] = floor($row['unixtime']/60)*60;          
+     $interval['day'] = floor($row['unixtime']/86400)*86400;          
      
-     $prices[$row[symbol]][second][$interval[second]][] = $row[close]; // Seconds
-     $prices[$row[symbol]][minute][$interval[minute]][] = $row[close]; // Minutes
-     $prices[$row[symbol]][day][$interval[day]][] = $row[close]; // Day
+     $prices[$row['symbol']]['second'][$interval['second']][] = $row['close']; // Seconds
+     $prices[$row['symbol']]['minute'][$interval['minute']][] = $row['close']; // Minutes
+     $prices[$row['symbol']]['day'][$interval['day']][] = $row['close']; // Day
      
-     $this->adjustDailyPriceCache($row, $interval[day]);
+     $this->adjustDailyPriceCache($row, $interval['day']);
      
-     $duplicatecheck[$row[symbol]] = $row;
+     $duplicatecheck[$row['symbol']] = $row;
     }            
-    $lastunixtime = $row[unixtime]; // Offset unixtime       
-    $lastpriceid = $row[priceid]; // Offset priceid
+    $lastunixtime = $row['unixtime']; // Offset unixtime       
+    $lastpriceid = $row['priceid']; // Offset priceid
    }
   }
   
@@ -99,24 +101,26 @@ class ChartLogger
      $quote = array();
      
      foreach ($price AS $unixtime => $values)
-     {         
+     { 
+      $quote = array();
+      
       // If symbol/unixtime exists in cache, use open/high/low from cache
-      if ($unixtime == $this->pricecache[$symbol][$interval][unixtime])
+      if ($unixtime == $this->pricecache[$symbol][$interval]['unixtime'])
       {
-       $quote[open] = $this->pricecache[$symbol][$interval][open];
-       $quote[low] = $this->pricecache[$symbol][$interval][low];
-       $quote[high] = $this->pricecache[$symbol][$interval][high];
+       $quote['open'] = $this->pricecache[$symbol][$interval]['open'];
+       $quote['low'] = $this->pricecache[$symbol][$interval]['low'];
+       $quote['high'] = $this->pricecache[$symbol][$interval]['high'];
       }
       
       // 1. Open - Use cache value if exists always
       // 2. High/Low - Use lower/higher value if exists
       // 3. Close - Always use last element in list
-      $quote[open] = $quote[open] ? $quote[open] : current($values); // First element
-      $quote[low] = ($quote[low] && $quote[low] < min($values)) ? $quote[low] : min($values);
-      $quote[high] = ($quote[high] && $quote[high] > max($values)) ? $quote[high] : max($values);
-      $quote[close] = end($values); // Last element
+      $quote['open'] = $quote['open'] ? $quote['open'] : current($values); // First element
+      $quote['low'] = ($quote['low'] && $quote['low'] < min($values)) ? $quote['low'] : min($values);
+      $quote['high'] = ($quote['high'] && $quote['high'] > max($values)) ? $quote['high'] : max($values);
+      $quote['close'] = end($values); // Last element
         
-      $quotes[$symbol][$interval][$unixtime] = $quote;    
+      $quotes[$symbol][$interval][$unixtime] = $quote;
      } 
     }
    }   
@@ -127,23 +131,23 @@ class ChartLogger
   ******************************************************************************/
   if ($quotes)
   {
-   //### INTRADAY   
+   //### INTRADAY (SECOND) 
    foreach ($quotes AS $symbol => $intervals)
    {
-    foreach ($intervals[second] AS $unixtime => $quote)
+    foreach ($intervals['second'] AS $unixtime => $quote)
     {
      $insert = array();
-     $insert[symbol] = $symbol;
-     $insert[unixtime] = $unixtime;
-     $insert[datetime] = gmdate("Y-m-d H:i:s",$unixtime);
-     $insert[close] = $quote[close];
-     $insert[low] = $quote[low];
-     $insert[high] = $quote[high];
-     $insert[open] = $quote[open];
+     $insert['symbol'] = $symbol;
+     $insert['unixtime'] = $unixtime;
+     $insert['datetime'] = gmdate("Y-m-d H:i:s",$unixtime);
+     $insert['close'] = $quote['close'];
+     $insert['low'] = $quote['low'];
+     $insert['high'] = $quote['high'];
+     $insert['open'] = $quote['open'];
      $inserts[] = "('" . implode("','",$insert) . "')";
     }
     
-    $query = "REPLACE INTO intraday
+    $query = "REPLACE INTO intraday_second
               (symbol, unixtime, datetime, close, low, high, open)
               VALUES
               " . implode(",",$inserts);
@@ -154,61 +158,61 @@ class ChartLogger
     foreach ($intervals[minute] AS $unixtime => $quote)
     {
      $insert = array();
-     $insert[symbol] = $symbol;
-     $insert[unixtime] = $unixtime;
-     $insert[close] = $quote[close];
-     $insert[low] = $quote[low];
-     $insert[high] = $quote[high];
-     $insert[open] = $quote[open];
+     $insert['symbol'] = $symbol;
+     $insert['unixtime'] = $unixtime;
+     $insert['close'] = $quote['close'];
+     $insert['low'] = $quote['low'];
+     $insert['high'] = $quote['high'];
+     $insert['open'] = $quote['open'];
 
      $query = "INSERT INTO
-               minuteprice
+               intraday
                SET
-               symbol = '$insert[symbol]',
-               unixtime = $insert[unixtime],
-               datetime = FROM_UNIXTIME($insert[unixtime]),
-               close = '$insert[close]',
-               high = '$insert[high]',
-               low = '$insert[low]',
-               open = '$insert[open]'    
+               symbol = '{$insert['symbol']}',
+               unixtime = {$insert['unixtime']},
+               datetime = FROM_UNIXTIME({$insert['unixtime']}),
+               close = '{$insert['close']}',
+               high = '{$insert['high']}',
+               low = '{$insert['low']}',
+               open = '{$insert['open']}'    
                  ON DUPLICATE KEY
                  UPDATE
-                 close = '$insert[close]',
-                 high = '$insert[high]',
-                 low = '$insert[low]',
-                 open = '$insert[open]'                                                
+                 close = '{$insert['close']}',
+                 high = '{$insert['high']}',
+                 low = '{$insert['low']}',
+                 open = '{$insert['open']}'
                ";    
      $this->DB->query($query);         
      unset($insert);      
     }      
     
     //-----------------------------------------------------------------------------
-    foreach ($intervals[day] AS $unixtime => $quote)
+    foreach ($intervals['day'] AS $unixtime => $quote)
     {
      $insert = array();
-     $insert[symbol] = $symbol;
-     $insert[unixtime] = $unixtime;
-     $insert[close] = $quote[close];
-     $insert[low] = $quote[low];
-     $insert[high] = $quote[high];
-     $insert[open] = $quote[open];
+     $insert['symbol'] = $symbol;
+     $insert['unixtime'] = $unixtime;
+     $insert['close'] = $quote['close'];
+     $insert['low'] = $quote['low'];
+     $insert['high'] = $quote['high'];
+     $insert['open'] = $quote['open'];
 
      $query = "INSERT INTO
                dailyprice
                SET
-               symbol = '$insert[symbol]',
-               unixtime = $insert[unixtime],
-               datetime = FROM_UNIXTIME($insert[unixtime]),
-               close = '$insert[close]',
-               high = '$insert[high]',
-               low = '$insert[low]',
-               open = '$insert[open]'    
+               symbol = '{$insert[symbol]}',
+               unixtime = {$insert[unixtime]},
+               datetime = FROM_UNIXTIME({$insert[unixtime]}),
+               close = '{$insert['close']}',
+               high = '{$insert['high']}',
+               low = '{$insert['low']}',
+               open = '{$insert['open']}'    
                  ON DUPLICATE KEY
                  UPDATE
-                 close = '$insert[close]',
-                 high = '$insert[high]',
-                 low = '$insert[low]',
-                 open = '$insert[open]'                                                
+                 close = '{$insert['close']}',
+                 high = '{$insert['high']}',
+                 low = '{$insert['low']}',
+                 open = '{$insert['open']}'   
                ";    
      $this->DB->query($query);         
      unset($insert);
@@ -221,26 +225,8 @@ class ChartLogger
   ******************************************************************************/
   if ($quotes)
   {
-   foreach ($quotes AS $symbol => $intervals)
-   {
-    foreach ($intervals AS $interval => $quote)
-    {
-     $timerange = max(array_keys($quote));
-     $finalquote = end($quote); // Get the last quote
-     
-     $query = "REPLACE INTO pricecache
-               SET
-               symbol = '$symbol',
-               `interval` = '$interval',
-               unixtime = '$timerange',
-               close = '$finalquote[close]',
-               high = '$finalquote[high]',
-               low = '$finalquote[low]',
-               open = '$finalquote[open]'
-               ";
-     $this->DB->query($query);   
-    }
-   }
+   $this->updatePriceCache($quotes);
+   $this->logOutput($quotes);
   }
 
   /******************************************************************************
@@ -254,33 +240,16 @@ class ChartLogger
              FROM quotelog";
    $stmt = $this->DB_DATAFEED->query($query);
    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-   $lastpriceid = $row[lastpriceid];
-   $lastunixtime = $row[lastunixtime];   
+   $lastpriceid = $row['lastpriceid'];
+   $lastunixtime = $row['lastunixtime'];   
   }
   $this->updateLastPriceOffset($lastpriceid, $lastunixtime);
-  
-  return $quotes;
  }
  
  //-----------------------------------------------------------------------------
  public function getLag()
  {
   return ($this->datafeed_unixtime - $this->lastunixtime);
- }
- 
- //-----------------------------------------------------------------------------
- private function adjustDailyPriceCache($row, $unixtime)
- {
-  if (!$this->pricecache[$row[symbol]][day][adjusted])
-  {   
-   if ($this->pricecache[$row[symbol]][day][unixtime] == $unixtime)
-   {
-    $this->pricecache[$row[symbol]][day][high] = $row[high];
-    $this->pricecache[$row[symbol]][day][low] = $row[low];
-    $this->pricecache[$row[symbol]][day][open] = $row[open];
-    $this->pricecache[$row[symbol]][day][adjusted] = true;
-   }   
-  }
  }
  
  //-----------------------------------------------------------------------------
@@ -291,19 +260,70 @@ class ChartLogger
   $stmt = $this->DB->query($query);  
   while ($row = $stmt->fetch(PDO::FETCH_ASSOC))
   {
-   $this->pricecache[$row[symbol]][$row[interval]] = $row;
+   $this->pricecache[$row['symbol']][$row['interval']] = $row;
   }
  }
+  
+  
+ //-----------------------------------------------------------------------------
+ private function adjustDailyPriceCache($row, $unixtime)
+ {
+  if (!$this->pricecache[$row['symbol']]['day']['adjusted'])
+  {   
+   if ($this->pricecache[$row['symbol']]['day']['unixtime'] == $unixtime)
+   {
+    $this->pricecache[$row['symbol']]['day']['high'] = $row['high'];
+    $this->pricecache[$row['symbol']]['day']['low'] = $row['low'];
+    $this->pricecache[$row['symbol']]['day']['open'] = $row['open'];
+    $this->pricecache[$row['symbol']]['day']['adjusted'] = true;
+   }   
+  }
+ }  
  
+ //-----------------------------------------------------------------------------
+ private function updatePriceCache($quotes)
+ {  
+  foreach ($quotes AS $symbol => $intervals)
+  {
+   foreach ($intervals AS $interval => $prices)
+   {
+    $price = end($prices); // Get the last quote   
+    $price['unixtime'] = max(array_keys($prices));
+    
+    $query = "INSERT INTO pricecache
+              SET
+              symbol = '$symbol',
+              `interval` = '$interval',
+              unixtime = '{$price['unixtime']}',
+              close = '{$price['close']}',
+              high = '{$price['high']}',
+              low = '{$price['low']}',
+              open = '{$price['open']}'
+                ON DUPLICATE KEY UPDATE
+                unixtime = '{$price['unixtime']}',
+                close = '{$price['close']}',
+                high = '{$price['high']}',
+                low = '{$price['low']}',
+                open = '{$price['open']}'                                  
+              ";
+                            
+    if (!$this->DB->query($query))
+    {
+     return false;
+    }
+   }
+  }
+ }
+
+
  //-----------------------------------------------------------------------------
  private function fetchSymbols()
  {
   $query = "SELECT * FROM counter WHERE active = '1'";
-  //$query = "SELECT * FROM counter WHERE symbol = 'XAU A0-FX'";
   $stmt = $this->DB_DATAFEED->query($query);
   while ($row = $stmt->fetch(PDO::FETCH_ASSOC))
   {
-   $this->symbols[$row[symbol]] = $row;
+   $this->symbols[$row['symbol']] = $row;
   }
  }
  
@@ -334,7 +354,7 @@ class ChartLogger
             
   $stmt = $this->DB->query($query);
   $row = $stmt->fetch(PDO::FETCH_ASSOC);
-  $this->lastunixtime = $row[lastunixtime];  
+  $this->lastunixtime = $row['lastunixtime'];  
  }
  
  //-----------------------------------------------------------------------------
@@ -350,7 +370,26 @@ class ChartLogger
    $query = "UPDATE cron SET value = $lastunixtime WHERE cronid = 'lastunixtime'";
    $this->DB->query($query);  
   }
- } 
+ }
+ 
+ //-----------------------------------------------------------------------------
+ public function getOutput()
+ {
+  ksort($this->output);
+  return $this->output;
+ }
+
+ //-----------------------------------------------------------------------------
+ private function logOutput($quotes)
+ {
+  foreach ($quotes AS $symbol => $intervals)
+  {  
+   $prices = $intervals['second'];   
+   $price = end($prices); // Get the last quote   
+   $price['unixtime'] = max(array_keys($prices));    
+   $this->output[$symbol] = $price;
+  }     
+ }  
 
 }
 
