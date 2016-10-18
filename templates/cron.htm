@@ -25,18 +25,32 @@
           
 
             
-            <div class="well text-center" style="margin-bottom: 0;">
-              <img src="assets/img/icon_database.png" style="max-height: 70px">
-              <img src="assets/img/icon_direction.png" style="max-height: 30px">
-              <img src="assets/img/icon_direction.png" style="max-height: 50px">
-              <img src="assets/img/icon_direction.png" style="max-height: 30px">
-              <img src="assets/img/icon_database.png" style="max-height: 70px">              
-              <img src="assets/img/icon_chart.png" style="max-height: 40px">              
-              <div style="margin-bottom: 20px;">
-                <b>Datafeed:</b> {$display.datafeed}
-                <span style="margin: 0 30px;">&nbsp;</span>
-                <b>Chart Host:</b> {$display.host}
+            <div class="well well-sm" style="margin-bottom: 0;">
+              <div class="row">
+                <div class="col-md-6 text-center">
+                  <img src="assets/img/icon_database.png" style="max-height: 70px">
+                  <img src="assets/img/icon_direction.png" style="max-height: 30px">
+                  <img src="assets/img/icon_direction.png" style="max-height: 50px">
+                  <img src="assets/img/icon_direction.png" style="max-height: 30px">
+                  <img src="assets/img/icon_database.png" style="max-height: 70px">              
+                  <img src="assets/img/icon_chart.png" style="max-height: 40px">              
+                  <div style="margin-bottom: 20px;">
+                    <b>Datafeed:</b> {$display.datafeed}
+                    <span style="margin: 0 20px;">&nbsp;</span>
+                    <b>Chart Host:</b> {$display.host}
+                  </div>                
+                </div>
+                <div class="col-md-6">
+                  <div class="panel panel-default">                  
+                    <table class="table table-condensed small">
+                      {foreach from=$stats item=row}
+                      <tr><th class="success">{$row.label}</th><td>{$row.value|default:"--"}</td></tr>
+                      {/foreach}
+                    </table>
+                  </div>
+                </div>
               </div>
+
               <div class="progress" style="margin-bottom: 0;">              
                 <div class="progress-bar progress-bar-danger" role="progressbar" style="width:{if $display.lag < 60}{$display.lag/60*100}{else}100{/if}%">
                   {if $output}

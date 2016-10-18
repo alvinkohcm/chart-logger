@@ -4,6 +4,7 @@ ini_set("display_errors",true);
 
 include(__DIR__."/../../_settings/config.php");
 include(__DIR__."/../classes/ChartLogger.class.php");
+include(__DIR__."/../classes/Symbol.class.php");
 include(__DIR__."/composer/vendor/autoload.php");
 
 /******************************************************************************

@@ -4,6 +4,8 @@ class ChartLogger
 {
  public $symbols;
  public $output;
+
+ public $stats;
  
  private $lastpriceid;
  private $lastunixtime;
@@ -11,7 +13,7 @@ class ChartLogger
  private $timezone;
  private $datafeed_unixtime;
  private $pricecache;
-
+ 
  private $DB;
  private $DB_DATAFEED;
  
@@ -42,6 +44,8 @@ class ChartLogger
  //-----------------------------------------------------------------------------
  public function logPrices()
  {
+  $starttime = microtime(true);
+  
   $this->fetchSymbols();
   $this->fetchLastPriceOffset(); // Last priceid/unixtime as price offset
   $this->fetchPriceCache(); // Last captured prices stored in DB as cache
@@ -67,6 +71,8 @@ class ChartLogger
             
    while ($row = $stmt->fetch(PDO::FETCH_ASSOC))
    {
+    $this->stats[total_rows]++;
+    
     //### Only capture non-duplicate unique prices (unixtime/close)
     if ($duplicatecheck[$row['symbol']]['unixtime'] != $row['unixtime'] ||
         $duplicatecheck[$row['symbol']]['close'] != $row['close']) 
@@ -80,10 +86,15 @@ class ChartLogger
      $prices[$row['symbol']]['minute'][$interval['minute']][] = $row['close']; // Minutes
      $prices[$row['symbol']]['day'][$interval['day']][] = $row['close']; // Day
      
+     //### Daily private will use datafeed provided open/high/low
      $this->adjustDailyPriceCache($row, $interval['day']);
      
      $duplicatecheck[$row['symbol']] = $row;
-    }            
+    }
+    else
+    {
+     $this->stats[total_duplicates]++;
+    }
     $lastunixtime = $row['unixtime']; // Offset unixtime       
     $lastpriceid = $row['priceid']; // Offset priceid
    }
@@ -217,7 +228,7 @@ class ChartLogger
      $this->DB->query($query);         
      unset($insert);
     }      
-   }
+   }   
   }
   
   /******************************************************************************
@@ -244,6 +255,21 @@ class ChartLogger
    $lastunixtime = $row['lastunixtime'];   
   }
   $this->updateLastPriceOffset($lastpriceid, $lastunixtime);
+  
+  /******************************************************************************
+  * EXECUTION TIME
+  ******************************************************************************/
+  $this->stats['execution_time'] = round((microtime(true)-$starttime)/60,4) . " seconds";  
+ }
+ 
+ //-----------------------------------------------------------------------------
+ public function getStats()
+ {
+  $stats = array();
+  $stats[execution_time] = array("label"=>"Execution Time","value"=>$this->stats['execution_time']);
+  $stats[total_rows] = array("label"=>"Total Rows","value"=>$this->stats['total_rows']);
+  $stats[total_duplicates] = array("label"=>"Duplicate Prices","value"=>$this->stats['total_duplicates']);
+  return $stats;
  }
  
  //-----------------------------------------------------------------------------
@@ -251,6 +277,16 @@ class ChartLogger
  {
   return ($this->datafeed_unixtime - $this->lastunixtime);
  }
+ 
+ //-----------------------------------------------------------------------------
+ public function getOutput()
+ {
+  if ($this->output)
+  {
+   ksort($this->output);
+  }
+  return $this->output;
+ } 
  
  //-----------------------------------------------------------------------------
  private function fetchPriceCache()
@@ -319,12 +355,33 @@ class ChartLogger
  //-----------------------------------------------------------------------------
  private function fetchSymbols()
  {
-  $query = "SELECT * FROM counter WHERE active = '1'";
+  //### Chart symbols
+  $chartsymbols = array();
+  
+  $query = "SELECT * FROM symbol";
+  $stmt = $this->DB->query($query);
+  while ($row = $stmt->fetchObject('Symbol', array($this->DB)))
+  {
+   $chartsymbols[$row->symbol] = $row;
+  }
+  
+  //### Datafeed counters
+  $query = "SELECT symbol, formatmask FROM counter WHERE active = '1'";
   $stmt = $this->DB_DATAFEED->query($query);
   while ($row = $stmt->fetch(PDO::FETCH_ASSOC))
   {
    $this->symbols[$row['symbol']] = $row;
+   
+   if (!in_array($row['symbol'],array_keys($chartsymbols)))
+   {    
+    $chartsymbol = new Symbol($this->DB);
+    $chartsymbol->setSymbol($row['symbol']);
+    $chartsymbol->setPrecision($row['formatmask']);
+    
+    $chartsymbol->save();
+   }
   }
+  
  }
  
  //-----------------------------------------------------------------------------
@@ -370,13 +427,6 @@ class ChartLogger
    $query = "UPDATE cron SET value = $lastunixtime WHERE cronid = 'lastunixtime'";
    $this->DB->query($query);  
   }
- }
- 
- //-----------------------------------------------------------------------------
- public function getOutput()
- {
-  ksort($this->output);
-  return $this->output;
  }
 
  //-----------------------------------------------------------------------------

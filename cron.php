@@ -20,6 +20,7 @@ $display[lag] = $logger->getLag();
 /******************************************************************************
 * DISPLAY
 ******************************************************************************/
+$template->assign("stats",$logger->getStats());
 $template->assign("display",$display);
 $template->assign("output",$output);
 $template->display("cron.htm");
