@@ -44,7 +44,7 @@ class Symbol
  {
   if (preg_match("/[#\.](0+)$/",$formatmask,$matches))
   {
-   $pricescale = 1 * pow(10, strlen($matches[1])-1);
+   $pricescale = 1 * pow(10, strlen($matches[1]));
   }
   
   $this->pricescale = $pricescale;
