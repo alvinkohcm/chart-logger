@@ -65,7 +65,7 @@ class ChartLogger
              AND time > (NOW()- INTERVAL 10 MINUTE)
              AND time > FROM_UNIXTIME({$this->lastunixtime})
              LIMIT 2000
-             ";
+             ";            
    
    $stmt = $this->DB_DATAFEED->query($query);   
             
@@ -80,13 +80,13 @@ class ChartLogger
      //### Group prices by interval (seconds, 10s, minutes)         
      $interval['second'] = $row['unixtime'];
      $interval['minute'] = floor($row['unixtime']/60)*60;          
-     $interval['day'] = floor($row['unixtime']/86400)*86400;          
+     $interval['day'] = floor($row['unixtime']/3600)*3600;          
      
      $prices[$row['symbol']]['second'][$interval['second']][] = $row['close']; // Seconds
      $prices[$row['symbol']]['minute'][$interval['minute']][] = $row['close']; // Minutes
      $prices[$row['symbol']]['day'][$interval['day']][] = $row['close']; // Day
      
-     //### Daily private will use datafeed provided open/high/low
+     //### Daily price will use datafeed provided open/high/low
      $this->adjustDailyPriceCache($row, $interval['day']);
      
      $duplicatecheck[$row['symbol']] = $row;
@@ -150,51 +150,26 @@ class ChartLogger
      $insert = array();
      $insert['symbol'] = $symbol;
      $insert['unixtime'] = $unixtime;
-     $insert['datetime'] = gmdate("Y-m-d H:i:s",$unixtime);
+     $insert['utcdatetime'] = gmdate("Y-m-d H:i:s",$unixtime);
      $insert['close'] = $quote['close'];
      $insert['low'] = $quote['low'];
      $insert['high'] = $quote['high'];
      $insert['open'] = $quote['open'];
-     $inserts[] = "('" . implode("','",$insert) . "')";
+     $inserts['second'][] = "('" . implode("','",$insert) . "')";
     }
     
-    $query = "REPLACE INTO intraday_second
-              (symbol, unixtime, datetime, close, low, high, open)
-              VALUES
-              " . implode(",",$inserts);
-    $this->DB->query($query);
-    unset($inserts);    
-    
     //-----------------------------------------------------------------------------
-    foreach ($intervals[minute] AS $unixtime => $quote)
+    foreach ($intervals['minute'] AS $unixtime => $quote)
     {
      $insert = array();
      $insert['symbol'] = $symbol;
      $insert['unixtime'] = $unixtime;
+     $insert['utcdatetime'] = gmdate("Y-m-d H:i:s",$unixtime);     
      $insert['close'] = $quote['close'];
      $insert['low'] = $quote['low'];
      $insert['high'] = $quote['high'];
      $insert['open'] = $quote['open'];
-
-     $query = "INSERT INTO
-               intraday
-               SET
-               symbol = '{$insert['symbol']}',
-               unixtime = {$insert['unixtime']},
-               datetime = FROM_UNIXTIME({$insert['unixtime']}),
-               close = '{$insert['close']}',
-               high = '{$insert['high']}',
-               low = '{$insert['low']}',
-               open = '{$insert['open']}'    
-                 ON DUPLICATE KEY
-                 UPDATE
-                 close = '{$insert['close']}',
-                 high = '{$insert['high']}',
-                 low = '{$insert['low']}',
-                 open = '{$insert['open']}'
-               ";    
-     $this->DB->query($query);         
-     unset($insert);      
+     $inserts['minute'][] = "('" . implode("','",$insert) . "')";
     }      
     
     //-----------------------------------------------------------------------------
@@ -203,32 +178,64 @@ class ChartLogger
      $insert = array();
      $insert['symbol'] = $symbol;
      $insert['unixtime'] = $unixtime;
+     $insert['utcdatetime'] = gmdate("Y-m-d H:i:s",$unixtime);     
      $insert['close'] = $quote['close'];
      $insert['low'] = $quote['low'];
      $insert['high'] = $quote['high'];
      $insert['open'] = $quote['open'];
+     
+     $inserts['day'][] = "('" . implode("','",$insert) . "')";
+    }      
+   }
 
+   /*******************************************************************************
+   * MASS INSERTS
+   *******************************************************************************/   
+   if ($inserts['second'])
+   {
+    $query = "INSERT INTO seconds
+              (symbol, unixtime, utcdatetime, close, low, high, open)
+              VALUES " . implode(",",$inserts['second']) . "
+              ON DUPLICATE KEY UPDATE
+                close = VALUES(close),
+                low = VALUES(low),
+                high = VALUES(high),
+                open = VALUES(open)              
+              ";
+    $this->DB->query($query);       
+   }
+   
+   if ($inserts['minute']) 
+   {
+    $query = "INSERT INTO
+               intraday
+               (symbol, unixtime, utcdatetime, close, high, low, open)
+               VALUES " . implode(",",$inserts['minute']) . "
+               ON DUPLICATE KEY UPDATE
+                close = VALUES(close),
+                low = VALUES(low),
+                high = VALUES(high),
+                open = VALUES(open)  
+               ";    
+     $this->DB->query($query);      
+   }
+   
+   //------------------------------------------------------------------------------
+   if ($inserts['day'])
+   {
      $query = "INSERT INTO
                dailyprice
-               SET
-               symbol = '{$insert[symbol]}',
-               unixtime = {$insert[unixtime]},
-               datetime = FROM_UNIXTIME({$insert[unixtime]}),
-               close = '{$insert['close']}',
-               high = '{$insert['high']}',
-               low = '{$insert['low']}',
-               open = '{$insert['open']}'    
-                 ON DUPLICATE KEY
-                 UPDATE
-                 close = '{$insert['close']}',
-                 high = '{$insert['high']}',
-                 low = '{$insert['low']}',
-                 open = '{$insert['open']}'   
+               (symbol, unixtime, utcdatetime, close, high, low, open)
+               VALUES " . implode(",",$inserts['day']) . "
+               ON DUPLICATE KEY UPDATE
+                close = VALUES(close),
+                low = VALUES(low),
+                high = VALUES(high),
+                open = VALUES(open)   
                ";    
-     $this->DB->query($query);         
-     unset($insert);
-    }      
-   }   
+               
+     $this->DB->query($query);          
+   }
   }
   
   /******************************************************************************
@@ -326,29 +333,26 @@ class ChartLogger
     $price = end($prices); // Get the last quote   
     $price['unixtime'] = max(array_keys($prices));
     
-    $query = "INSERT INTO pricecache
-              SET
-              symbol = '$symbol',
-              `interval` = '$interval',
-              unixtime = '{$price['unixtime']}',
-              close = '{$price['close']}',
-              high = '{$price['high']}',
-              low = '{$price['low']}',
-              open = '{$price['open']}'
-                ON DUPLICATE KEY UPDATE
-                unixtime = '{$price['unixtime']}',
-                close = '{$price['close']}',
-                high = '{$price['high']}',
-                low = '{$price['low']}',
-                open = '{$price['open']}'                                  
-              ";
-                            
-    if (!$this->DB->query($query))
-    {
-     return false;
-    }
+    $values[] = "('$symbol', '$interval', $price[unixtime], '$price[close]', '$price[high]', '$price[low]', '$price[open]')";    
    }
   }
+
+  $query = "INSERT INTO pricecache
+            (symbol, `interval`, unixtime, close, high, low, open)
+            VALUES
+            (".implode(",",$values).")
+                ON DUPLICATE KEY UPDATE
+                unixtime = VALUES(unixtime),
+                close = VALUES(close),
+                high = VALUES(high),
+                low = VALUES(low),
+                open = VALUES(open)                
+            ";  
+            
+  if (!$this->DB->query($query))
+  {
+   return false;
+  }  
  }
 
 
@@ -364,7 +368,7 @@ class ChartLogger
   {
    $chartsymbols[$row->symbol] = $row;
   }
-  
+
   //### Datafeed counters
   $query = "SELECT symbol, formatmask FROM counter WHERE active = '1'";
   $stmt = $this->DB_DATAFEED->query($query);
@@ -372,6 +376,9 @@ class ChartLogger
   {
    $this->symbols[$row['symbol']] = $row;
    
+   /******************************************************************************
+   * CREATE SYMBOL/COUNTER IF NOT EXIST
+   ******************************************************************************/   
    if (!in_array($row['symbol'],array_keys($chartsymbols)))
    {    
     $chartsymbol = new Symbol($this->DB);

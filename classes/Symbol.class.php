@@ -3,6 +3,9 @@
 class Symbol
 {
  public $symbol;
+ public $name;
+ public $description;
+ public $exchangeid;
  public $session;
  public $timezone;
  public $pointvalue;
@@ -42,9 +45,13 @@ class Symbol
  //-----------------------------------------------------------------------------
  public function setPrecision($formatmask, $pointvalue = 1)
  {
-  if (preg_match("/[#\.](0+)$/",$formatmask,$matches))
+  if (preg_match("/\.(0+)$/",$formatmask,$matches))
   {
    $pricescale = 1 * pow(10, strlen($matches[1]));
+  }
+  else
+  {
+   $pricescale = 1;
   }
   
   $this->pricescale = $pricescale;
@@ -55,7 +62,10 @@ class Symbol
  public function save()
  {
   $params = array();
-  $params['symbol'] = $this->symbol;
+  $params['symbol'] = $this->symbol;  
+  $params['name'] = str_replace(" A0-FX","",$this->symbol);
+  $params['description'] = "";
+  $params['exchangeid'] = $this->matchCounterExchange($this->symbol);  
   $params['session'] = $this->session;
   $params['timezone'] = $this->timezone;
   $params['pointvalue'] = $this->pointvalue;
@@ -69,7 +79,10 @@ class Symbol
   
   $query = "REPLACE INTO symbol
             SET
-            symbol = :symbol,
+            symbol = :symbol,            
+            name = :name,
+            description = :description,
+            exchangeid = :exchangeid,            
             session = :session,
             timezone = :timezone,
             pointvalue = :pointvalue,
@@ -84,37 +97,6 @@ class Symbol
             
   $stmt = $this->DB->prepare($query);
   $stmt->execute($params) OR DIE(print_r($stmt->errorInfo()));
-  
-  $this->createCounter();
- }
- 
- //-----------------------------------------------------------------------------
- private function createCounter()
- {
-  $counterid = $this->symbol;
-  $symbol = $this->symbol;
-  $name = $this->symbol;
-  
-  $query = "SELECT * FROM counter WHERE symbol = '$symbol'";
-  $stmt = $this->DB->query($query);
-  if ($stmt->rowCount()==0)
-  {
-   $params['counterid'] = $counterid;
-   $params['symbol'] = $symbol;
-   $params['name'] = $name;
-   $params['exchangeid'] = $this->matchCounterExchange($counterid);
-   
-   $query = "INSERT INTO counter
-             SET
-             counterid = :counterid,
-             symbol = :symbol,
-             name = :name,
-             exchangeid = :exchangeid
-             ";
-   
-   $stmt = $this->DB->prepare($query);
-   $stmt->execute($params);   
-  }
  }
  
  //-----------------------------------------------------------------------------

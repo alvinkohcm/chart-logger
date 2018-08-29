@@ -3,6 +3,15 @@
 include("includes/functions.php");
 
 /******************************************************************************
+* PARTITIONING
+******************************************************************************/
+if (requireRotation($PDO))
+{
+ rotatePartitions($PDO, "seconds", 3, 3);
+ rotatePartitions($PDO, "intraday", 7, 3);
+}
+
+/******************************************************************************
 * FETCH ALL PRICES
 ******************************************************************************/
 $logger = new ChartLogger($PDO);
@@ -24,5 +33,6 @@ $template->assign("stats",$logger->getStats());
 $template->assign("display",$display);
 $template->assign("output",$output);
 $template->display("cron.htm");
+
 
 ?>
