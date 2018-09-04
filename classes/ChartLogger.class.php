@@ -80,7 +80,7 @@ class ChartLogger
      //### Group prices by interval (seconds, 10s, minutes)         
      $interval['second'] = $row['unixtime'];
      $interval['minute'] = floor($row['unixtime']/60)*60;          
-     $interval['day'] = floor($row['unixtime']/3600)*3600;          
+     $interval['day'] = floor($row['unixtime']/86400)*86400;          
      
      $prices[$row['symbol']]['second'][$interval['second']][] = $row['close']; // Seconds
      $prices[$row['symbol']]['minute'][$interval['minute']][] = $row['close']; // Minutes
@@ -223,18 +223,18 @@ class ChartLogger
    //------------------------------------------------------------------------------
    if ($inserts['day'])
    {
-     $query = "INSERT INTO
-               dailyprice
-               (symbol, unixtime, utcdatetime, close, high, low, open)
-               VALUES " . implode(",",$inserts['day']) . "
-               ON DUPLICATE KEY UPDATE
-                close = VALUES(close),
-                low = VALUES(low),
-                high = VALUES(high),
-                open = VALUES(open)   
-               ";    
-               
-     $this->DB->query($query);          
+    $query = "INSERT INTO
+              dailyprice
+              (symbol, unixtime, utcdatetime, close, high, low, open)
+              VALUES " . implode(",",$inserts['day']) . "
+              ON DUPLICATE KEY UPDATE
+               close = VALUES(close),
+               low = VALUES(low),
+               high = VALUES(high),
+               open = VALUES(open)   
+              ";    
+              
+    $this->DB->query($query);          
    }
   }
   
