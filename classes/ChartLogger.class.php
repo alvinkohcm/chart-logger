@@ -80,7 +80,7 @@ class ChartLogger
      //### Group prices by interval (seconds, 10s, minutes)         
      $interval['second'] = $row['unixtime'];
      $interval['minute'] = floor($row['unixtime']/60)*60;          
-     $interval['day'] = floor($row['unixtime']/86400)*86400;          
+     $interval['day'] = floor($row['unixtime']/3600)*3600;         
      
      $prices[$row['symbol']]['second'][$interval['second']][] = $row['close']; // Seconds
      $prices[$row['symbol']]['minute'][$interval['minute']][] = $row['close']; // Minutes
@@ -98,7 +98,7 @@ class ChartLogger
     $lastunixtime = $row['unixtime']; // Offset unixtime       
     $lastpriceid = $row['priceid']; // Offset priceid
    }
-  }
+  }    
   
   /******************************************************************************
   * PREPARE QUOTES
@@ -141,7 +141,7 @@ class ChartLogger
   * INSERT PRICES
   ******************************************************************************/
   if ($quotes)
-  {
+  {   
    //### INTRADAY (SECOND) 
    foreach ($quotes AS $symbol => $intervals)
    {
@@ -310,16 +310,18 @@ class ChartLogger
   
  //-----------------------------------------------------------------------------
  private function adjustDailyPriceCache($row, $unixtime)
- {
+ {   
   if (!$this->pricecache[$row['symbol']]['day']['adjusted'])
-  {   
+  {    
    if ($this->pricecache[$row['symbol']]['day']['unixtime'] == $unixtime)
-   {
+   {    
     $this->pricecache[$row['symbol']]['day']['high'] = $row['high'];
     $this->pricecache[$row['symbol']]['day']['low'] = $row['low'];
     $this->pricecache[$row['symbol']]['day']['open'] = $row['open'];
     $this->pricecache[$row['symbol']]['day']['adjusted'] = true;
-   }   
+    
+    
+   }
   }
  }  
  
@@ -339,9 +341,8 @@ class ChartLogger
 
   $query = "INSERT INTO pricecache
             (symbol, `interval`, unixtime, close, high, low, open)
-            VALUES
-            (".implode(",",$values).")
-                ON DUPLICATE KEY UPDATE
+            VALUES ".implode(",",$values)."
+            ON DUPLICATE KEY UPDATE
                 unixtime = VALUES(unixtime),
                 close = VALUES(close),
                 high = VALUES(high),
@@ -438,7 +439,7 @@ class ChartLogger
 
  //-----------------------------------------------------------------------------
  private function logOutput($quotes)
- {
+ {  
   foreach ($quotes AS $symbol => $intervals)
   {  
    $prices = $intervals['second'];   
